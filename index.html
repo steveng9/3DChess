@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Chess</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>♟</text></svg>">
+
+<!-- PeerJS is a classic script and installs window.Peer. -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<!-- ===================== LOBBY ===================== -->
+<section id="screen-lobby" class="screen">
+  <div class="lobby-wrap">
+    <header class="brand">
+      <h1>3D&nbsp;Chess</h1>
+      <p class="tagline">Chess in a cube. Same rules, one more dimension.</p>
+    </header>
+
+    <div class="card">
+      <label class="field">
+        <span>Display name</span>
+        <input id="nameInput" type="text" maxlength="24" placeholder="anonymous" autocomplete="nickname">
+      </label>
+
+      <div class="row">
+        <label class="field compact">
+          <span>Board size</span>
+          <select id="sizeSelect">
+            <option value="4">4 × 4 × 4</option>
+            <option value="5">5 × 5 × 5</option>
+            <option value="6" selected>6 × 6 × 6</option>
+            <option value="7">7 × 7 × 7</option>
+            <option value="8">8 × 8 × 8</option>
+          </select>
+        </label>
+        <label class="field compact">
+          <span>Play as</span>
+          <select id="colourSelect">
+            <option value="w" selected>White</option>
+            <option value="b">Black</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row actions">
+        <button id="btnHost" class="primary">Host a game</button>
+        <button id="btnPractice">Practice / test mode</button>
+      </div>
+      <p class="hint">Practice mode plays both sides locally — no network, good for
+        trying out movement rules. <a href="tests.html">Run the rules unit tests →</a></p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Open games</h2>
+        <button id="btnRefresh" class="ghost small">Refresh</button>
+      </div>
+      <ul id="gameList" class="game-list"></ul>
+      <p id="lobbyStatus" class="hint"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== GAME ===================== -->
+<section id="screen-game" class="screen" hidden>
+  <div id="viewport"></div>
+
+  <!-- left column -------------------------------------------------- -->
+  <aside id="panelLeft" class="panel">
+    <div class="players">
+      <div class="player" id="playerTop">
+        <span class="swatch b"></span>
+        <span class="pname">Black</span>
+        <span class="material" id="matB"></span>
+      </div>
+      <div class="captured" id="capturedByB" title="Pieces Black has captured"></div>
+
+      <div class="turnbar" id="turnBar">White to move</div>
+
+      <div class="captured" id="capturedByW" title="Pieces White has captured"></div>
+      <div class="player" id="playerBottom">
+        <span class="swatch w"></span>
+        <span class="pname">White</span>
+        <span class="material" id="matW"></span>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>View</h3>
+      <div class="slice">
+        <label class="field compact">
+          <span>Isolate slice</span>
+          <select id="sliceAxis">
+            <option value="">Whole cube</option>
+            <option value="y">Level (Y)</option>
+            <option value="z">Rank (Z)</option>
+            <option value="x">File (X)</option>
+          </select>
+        </label>
+        <div class="slider-row" id="sliceRow" hidden>
+          <button class="ghost small" id="sliceDown">◀</button>
+          <span id="sliceLabel">1</span>
+          <button class="ghost small" id="sliceUp">▶</button>
+        </div>
+      </div>
+      <div class="toggles">
+        <button class="ghost small" id="btnFlip">Flip view</button>
+        <button class="ghost small" id="btnSpin">Auto-rotate</button>
+        <button class="ghost small" id="btnSound">Sound: on</button>
+      </div>
+    </div>
+
+    <div class="group" id="gameActions">
+      <h3>Game</h3>
+      <div class="toggles">
+        <button class="ghost small danger" id="btnResign">Resign</button>
+        <button class="ghost small" id="btnDraw">Offer draw</button>
+      </div>
+    </div>
+
+    <button class="ghost small wide" id="btnLeave">Leave game</button>
+  </aside>
+
+  <!-- right column ------------------------------------------------- -->
+  <aside id="panelRight" class="panel">
+    <div class="group grow">
+      <h3>Moves</h3>
+      <ol id="moveLog" class="move-log"></ol>
+    </div>
+
+    <div class="group grow chat">
+      <h3>Chat</h3>
+      <div id="chatLog" class="chat-log"></div>
+      <div class="chat-input">
+        <button class="ghost small" id="btnEmoji" title="Emoji">🙂</button>
+        <input id="chatInput" type="text" maxlength="240" placeholder="Say something…">
+        <button class="ghost small" id="btnSend">Send</button>
+      </div>
+      <div id="emojiPicker" class="emoji-picker" hidden></div>
+    </div>
+  </aside>
+
+  <div id="banner" class="banner" hidden></div>
+</section>
+
+<div id="toast" class="toast" hidden></div>
+
+<div id="modalRoot" class="modal-root" hidden>
+  <div class="modal">
+    <h3 id="modalTitle"></h3>
+    <p id="modalBody"></p>
+    <div id="modalButtons" class="modal-buttons"></div>
+  </div>
+</div>
+
+<script type="module" src="js/app/App.js"></script>
+</body>
+</html>

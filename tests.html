@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Chess — rules tests</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { overflow: auto; }
+  .tests { max-width: 780px; margin: 0 auto; padding: 36px 20px 80px; }
+  .tests h1 { font-size: 26px; margin: 0 0 4px; }
+  .summary {
+    display: flex; gap: 10px; align-items: center; margin: 18px 0 26px;
+    padding: 14px 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2);
+    font-weight: 600;
+  }
+  .summary.ok { border-color: #1f5c34; color: #7fe0a6; }
+  .summary.bad { border-color: #6d3a3c; color: #ff8a86; }
+  .suite { margin-bottom: 22px; }
+  .suite h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); margin: 0 0 8px; font-weight: 600;
+  }
+  .t { display: flex; gap: 10px; padding: 6px 10px; border-radius: 6px; align-items: baseline; }
+  .t:nth-child(odd) { background: rgba(255,255,255,.025); }
+  .t .mark { font-weight: 700; width: 16px; flex: none; }
+  .t.pass .mark { color: #35d07f; }
+  .t.fail .mark { color: #ef4b45; }
+  .t .err {
+    display: block; color: #ff8a86; font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px; margin-top: 3px;
+  }
+  .timing { color: var(--muted); font-weight: 400; margin-left: auto; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="tests">
+  <h1>3D Chess — rules tests</h1>
+  <p class="hint">Pure rules-engine tests. No graphics, no network.
+    <a href="index.html">← back to the game</a></p>
+  <div id="summary" class="summary">Running…</div>
+  <div id="out"></div>
+</div>
+
+<script type="module">
+const started = performance.now();
+let results;
+try {
+  ({ results } = await import('./js/test/tests.js'));
+} catch (err) {
+  document.getElementById('summary').className = 'summary bad';
+  document.getElementById('summary').textContent = 'Failed to load tests: ' + err.message;
+  console.error(err);
+  throw err;
+}
+const elapsed = Math.round(performance.now() - started);
+
+const out = document.getElementById('out');
+let pass = 0;
+let fail = 0;
+
+for (const suite of results) {
+  const sec = document.createElement('section');
+  sec.className = 'suite';
+  const h = document.createElement('h2');
+  h.textContent = suite.name;
+  sec.appendChild(h);
+
+  for (const t of suite.tests) {
+    if (t.pass) pass++; else fail++;
+    const row = document.createElement('div');
+    row.className = 't ' + (t.pass ? 'pass' : 'fail');
+    const mark = document.createElement('span');
+    mark.className = 'mark';
+    mark.textContent = t.pass ? '✓' : '✗';
+    const body = document.createElement('span');
+    body.textContent = t.name;
+    if (!t.pass) {
+      const e = document.createElement('span');
+      e.className = 'err';
+      e.textContent = t.error;
+      body.appendChild(e);
+    }
+    row.append(mark, body);
+    sec.appendChild(row);
+  }
+  out.appendChild(sec);
+}
+
+const s = document.getElementById('summary');
+s.className = 'summary ' + (fail ? 'bad' : 'ok');
+s.innerHTML = '';
+s.append(
+  Object.assign(document.createElement('span'), {
+    textContent: fail ? `${fail} failing, ${pass} passing` : `All ${pass} tests passing`,
+  }),
+  Object.assign(document.createElement('span'), { className: 'timing', textContent: `${elapsed} ms` }),
+);
+</script>
+</body>
+</html>
