@@ -12,7 +12,9 @@
   --danger:    #ef4b45;
   --gold:      #ffd23f;
   --radius:    10px;
-  --panel-w:   264px;
+  /* Panels give way to the board on narrower windows instead of forcing the
+     whole layout to stack. */
+  --panel-w:   clamp(186px, 16vw, 264px);
 }
 
 * { box-sizing: border-box; }
@@ -121,18 +123,34 @@ a { color: var(--accent); }
 
 /* ===================== GAME ===================== */
 
-#screen-game { display: grid; grid-template-columns: var(--panel-w) 1fr var(--panel-w); }
+/* One full-height row. Without an explicit row track the grid sizes itself to
+   the panels' content and the board only gets whatever is left over. */
+#screen-game {
+  display: grid;
+  grid-template-columns: var(--panel-w) minmax(0, 1fr) var(--panel-w);
+  grid-template-rows: 100%;
+  height: 100%;
+}
 
-#viewport { position: relative; grid-column: 2; min-width: 0; }
+#viewport {
+  position: relative;
+  grid-column: 2; grid-row: 1;
+  /* Both needed: grid items default to min-content, which the canvas would
+     otherwise inflate, and the board must be free to shrink. */
+  min-width: 0; min-height: 0;
+  overflow: hidden;
+}
 #viewport canvas { display: block; width: 100%; height: 100%; }
 
 .panel {
+  grid-row: 1;
   background: var(--bg-2);
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
   padding: 14px;
   display: flex; flex-direction: column; gap: 14px;
   overflow-y: auto;
+  min-height: 0;
 }
 #panelLeft { grid-column: 1; border-left: none; }
 #panelRight { grid-column: 3; border-right: none; }
@@ -257,10 +275,20 @@ a { color: var(--accent); }
 
 /* --- responsive --- */
 
-@media (max-width: 940px) {
-  #screen-game { grid-template-columns: 1fr; grid-template-rows: 1fr auto; overflow-y: auto; }
-  #viewport { grid-column: 1; grid-row: 1; min-height: 55vh; }
-  .panel { grid-column: 1; border: none; border-top: 1px solid var(--line); overflow: visible; }
+/* Only stack once side panels genuinely no longer fit — 3 * 186px of panel
+   plus a usable board. Above this the board stays full height. */
+@media (max-width: 720px) {
+  #screen-game {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(70vh, auto) auto auto;
+    height: auto;
+    overflow-y: auto;
+  }
+  #viewport { grid-column: 1; grid-row: 1; min-height: 70vh; }
+  .panel {
+    grid-column: 1; border: none; border-top: 1px solid var(--line);
+    overflow: visible; min-height: auto;
+  }
   #panelLeft { grid-row: 2; }
   #panelRight { grid-row: 3; }
   html, body { overflow: auto; }

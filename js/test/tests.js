@@ -190,11 +190,41 @@ suite('Setup — starting position', () => {
     eq(w, 24, 'expected 24 pieces per side on 6x6x6');
 
     for (let x = 0; x < 6; x++) {
-      for (let y = 0; y < 2; y++) {
-        eq(board[geo.idx(x, y, 0)].c, 'w');
-        eq(board[geo.idx(x, y, 5)].c, 'b');
-        eq(board[geo.idx(x, y, 1)].t, 'p');
-        eq(board[geo.idx(x, y, 4)].t, 'p');
+      for (let level = 0; level < 2; level++) {
+        const wy = level;          // White builds up from the bottom
+        const by = 5 - level;      // Black down from the top
+        eq(board[geo.idx(x, wy, 0)].c, 'w', 'white majors low and near');
+        eq(board[geo.idx(x, by, 5)].c, 'b', 'black majors high and far');
+        eq(board[geo.idx(x, wy, 1)].t, 'p', 'white pawns');
+        eq(board[geo.idx(x, by, 4)].t, 'p', 'black pawns');
+      }
+    }
+  });
+
+  test('the armies sit at opposite ends of the body diagonal', () => {
+    for (const n of [4, 5, 6, 8]) {
+      const dims = { x: n, y: n, z: n };
+      const { board, geo } = startingPosition(dims);
+      const wk = geo.xyz(findKing(board, 'w'));
+      const bk = geo.xyz(findKing(board, 'b'));
+
+      eq(wk.x, bk.x, `kings share a file on ${n}`);
+      eq(wk.y, 0, `white king on the bottom level on ${n}`);
+      eq(bk.y, n - 1, `black king on the top level on ${n}`);
+      eq(wk.z, 0, `white king on the near rank on ${n}`);
+      eq(bk.z, n - 1, `black king on the far rank on ${n}`);
+    }
+  });
+
+  test('the two garrisons never share a level', () => {
+    for (const n of [4, 5, 6, 7, 8]) {
+      const { board, geo } = startingPosition({ x: n, y: n, z: n });
+      const levels = { w: new Set(), b: new Set() };
+      for (let i = 0; i < board.length; i++) {
+        if (board[i]) levels[board[i].c].add(geo.xyz(i).y);
+      }
+      for (const y of levels.w) {
+        assert(!levels.b.has(y), `level ${y} is shared on ${n}x${n}x${n}`);
       }
     }
   });

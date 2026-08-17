@@ -12,6 +12,10 @@ anyone else can drop in to watch.
 > today. See [MOVEMENT.md](MOVEMENT.md) for what they are and how to change
 > them — the engine is built so that redefining movement touches one file.
 
+The two armies start at opposite ends of the cube's body diagonal: White low
+and near, Black high and far. One consequence is that the pawn walls never
+meet — see [MOVEMENT.md](MOVEMENT.md#the-pawn-walls-do-not-meet).
+
 ## Running it
 
 The site uses ES modules, so it needs to be served over HTTP — opening

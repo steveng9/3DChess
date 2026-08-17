@@ -127,6 +127,14 @@ export class Renderer3D {
 
     this._onResize = () => this.resize();
     window.addEventListener('resize', this._onResize);
+
+    // The viewport also changes size without the window doing so — panels
+    // reflowing, the screen becoming visible for the first time — so watch the
+    // container itself rather than relying on window resize alone.
+    if (window.ResizeObserver) {
+      this._ro = new ResizeObserver(() => this.resize());
+      this._ro.observe(this.container);
+    }
   }
 
   resize() {
@@ -503,6 +511,7 @@ export class Renderer3D {
 
   dispose() {
     window.removeEventListener('resize', this._onResize);
+    this._ro?.disconnect();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

@@ -148,9 +148,34 @@ centre with the queen beside it:
 | 6 | `r n q k n r` |
 | 4 | `r q k r` |
 
-Each side garrisons the **bottom two levels** of its two nearest ranks: majors
-on the outermost rank, pawns in front. On 6×6×6 that is 12 majors + 12 pawns =
-24 pieces per side, leaving the top four levels as open contested space.
+The two armies sit at **opposite ends of the cube's body diagonal** — as far
+apart as the board allows:
+
+| | Ranks | Levels |
+|---|---|---|
+| White | nearest (`z = 0, 1`) | lowest (`y = 0, 1`) |
+| Black | farthest (`z = N-1, N-2`) | highest (`y = N-1, N-2`) |
+
+Majors on the outermost rank, pawns in front. On 6×6×6 that is 12 majors +
+12 pawns = 24 pieces per side, leaving the middle of the cube as contested
+space. The kings share a file, so they face each other along the diagonal.
+
+### The pawn walls do not meet
+
+Worth knowing before you tune this. Because the armies are offset in `y` as
+well as `z`, and pawns only advance along `z`, a white pawn on level 1 marches
+the full length of the board without ever meeting a black pawn on level 5.
+There is no locked pawn structure and no mutual blockade — the opening is much
+more open than in 2D chess, and possibly a promotion race.
+
+Three ways to change that, if it turns out to be a problem:
+
+1. **Let pawns capture on all 8 forward diagonals** (`pawnCaptureDirs` in
+   `Geometry.js`) so they can at least contest adjacent levels.
+2. **Put the pawn rows on shared levels** while leaving the majors diagonal —
+   split `wy` / `by` per row in `Setup.js`.
+3. **Give pawns a vertical component** — a quiet move that changes level, which
+   would be a genuine 3D innovation rather than a port of the 2D rule.
 
 ## Piece values
 

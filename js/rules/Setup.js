@@ -3,18 +3,23 @@
  *
  * >>> STARTING POSITIONS ARE PLACEHOLDERS. Edit freely. <<<
  *
- * The layout generalises 2D chess and scales with board size:
+ * The two armies start at opposite ends of the cube's body diagonal — as far
+ * apart as the board allows:
  *
- *   White occupies the two nearest ranks (z = 0, 1) on the lowest levels.
- *   Black mirrors it on the two farthest ranks (z = N-1, N-2).
+ *   White   nearest ranks (z = 0, 1)      on the LOWEST levels  (y = 0, 1)
+ *   Black   farthest ranks (z = N-1, N-2) on the HIGHEST levels (y = N-1, N-2)
  *
  *   z = 0     majors, one row per occupied level
  *   z = 1     pawns,  one row per occupied level
  *
- * Only the bottom two levels (y = 0, 1) are garrisoned, which on a 6x6x6 board
- * gives each side 12 majors + 12 pawns = 24 pieces — comparable in density to
- * the 16 pieces of standard chess — and leaves the upper four levels open as
- * contested space.
+ * On a 6x6x6 board that gives each side 12 majors + 12 pawns = 24 pieces —
+ * comparable in density to the 16 of standard chess — and leaves the middle of
+ * the cube open as contested space.
+ *
+ * CONSEQUENCE WORTH KNOWING: because the armies are offset in y as well as z,
+ * the pawn walls do not face each other. A white pawn on level 1 advances the
+ * length of the board without ever meeting a black pawn on level 5. Whether
+ * that is a feature or a problem is a rules question — see MOVEMENT.md.
  *
  * The back-rank pattern is generated, not hardcoded, so it degrades sensibly:
  *   width 8 -> r n b q k b n r     (exactly standard chess)
@@ -69,8 +74,10 @@ export function startingPosition(dims) {
   const geo = makeGeometry(dims);
   const board = emptyBoard(dims);
 
-  const levels = Math.min(ARMY_LEVELS, dims.y);
-  const hasPawnRow = dims.z >= 4; // otherwise the two armies would collide
+  // Each side needs its own levels, so the two garrisons must fit in y without
+  // meeting in the middle.
+  const levels = Math.max(1, Math.min(ARMY_LEVELS, Math.floor(dims.y / 2)));
+  const hasPawnRow = dims.z >= 4; // otherwise the two armies would collide in z
 
   const place = (x, y, z, t, c) => {
     board[geo.idx(x, y, z)] = { t, c, moved: false };
@@ -79,14 +86,19 @@ export function startingPosition(dims) {
   for (let level = 0; level < levels; level++) {
     const pattern = level === 0 ? backRankPattern(dims.x) : supportRankPattern(dims.x);
 
+    // White builds up from the bottom level, Black down from the top, so the
+    // armies sit at opposite ends of the cube's body diagonal.
+    const wy = level;
+    const by = dims.y - 1 - level;
+
     for (let x = 0; x < dims.x; x++) {
       // Majors on the outermost rank of each side.
-      place(x, level, 0, pattern[x], 'w');
-      place(x, level, dims.z - 1, pattern[x], 'b');
+      place(x, wy, 0, pattern[x], 'w');
+      place(x, by, dims.z - 1, pattern[x], 'b');
 
       if (hasPawnRow) {
-        place(x, level, 1, 'p', 'w');
-        place(x, level, dims.z - 2, 'p', 'b');
+        place(x, wy, 1, 'p', 'w');
+        place(x, by, dims.z - 2, 'p', 'b');
       }
     }
   }
