@@ -22,6 +22,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PIECE_GLYPHS } from '../rules/Pieces.js';
+import { Config } from '../rules/Config.js';
+import { makePieceMesh, setPieceOpacity, disposePieceObject } from './PieceModels.js';
 
 const COLOURS = {
   bg: 0x0e1015,
@@ -47,7 +49,9 @@ export class Renderer3D {
     this.slice = { axis: null, index: 0 };  // axis: null | 'x' | 'y' | 'z'
     this.hovered = -1;
     this.spritePool = new Map();   // "wq" -> THREE.Texture
-    this.pieceSprites = [];
+    this.pieceObjects = [];        // sprites or model groups, per pieceStyle
+    this.pieceStyle = Config.pieceStyle === 'sprite' ? 'sprite' : 'model';
+    this._lastBoard = null;
     this.onPick = null;            // (cellIndex) => void
     this.onHover = null;
 
@@ -82,10 +86,18 @@ export class Renderer3D {
     this.controls.minDistance = 4;
     this.controls.maxDistance = 120;
 
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const key = new THREE.DirectionalLight(0xffffff, 0.6);
+    // Lattice and highlights use unlit materials, so this rig exists purely for
+    // the piece models. Flat ambient light would leave them shapeless, hence a
+    // key/fill pair and a hemisphere tint to separate top surfaces from
+    // undersides — a piece is read from its silhouette and its shading.
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    this.scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x30364a, 0.55));
+    const key = new THREE.DirectionalLight(0xffffff, 0.85);
     key.position.set(6, 10, 8);
     this.scene.add(key);
+    const fill = new THREE.DirectionalLight(0x9fb6dd, 0.4);
+    fill.position.set(-8, -5, -7);
+    this.scene.add(fill);
 
     this.boardGroup = new THREE.Group();
     this.scene.add(this.boardGroup);
@@ -153,6 +165,9 @@ export class Renderer3D {
     this.dims = { ...dims };
     this.cells = dims.x * dims.y * dims.z;
 
+    // Pieces first — they own shared geometry that must survive the sweep below.
+    this._clearPieces();
+
     while (this.boardGroup.children.length) {
       const c = this.boardGroup.children.pop();
       // Sprites all share one module-level geometry inside Three.js — disposing
@@ -160,7 +175,6 @@ export class Renderer3D {
       if (!c.isSprite) c.geometry?.dispose?.();
       if (c.material) (Array.isArray(c.material) ? c.material : [c.material]).forEach((m) => m.dispose());
     }
-    this.pieceSprites = [];
     this._pieceSig = null;
 
     this._buildLattice();
@@ -361,42 +375,72 @@ export class Renderer3D {
   // ---- content updates -------------------------------------------------
 
   /**
-   * Re-place every piece sprite from the board array.
+   * Re-place every piece from the board array.
    *
    * refreshAll() runs on every click, including selection changes that leave
    * the position untouched, so this short-circuits on an unchanged board
-   * rather than tearing down and rebuilding ~50 sprites each time.
+   * rather than tearing down and rebuilding ~50 pieces each time. The style is
+   * part of the signature, so switching representation invalidates it too.
    */
   setPieces(board) {
-    let sig = '';
+    this._lastBoard = board;
+
+    let sig = this.pieceStyle + '|';
     for (const p of board) sig += p ? p.c + p.t : '.';
     if (sig === this._pieceSig) return;
     this._pieceSig = sig;
 
-    for (const s of this.pieceSprites) {
-      this.boardGroup.remove(s);
-      s.material.dispose();
-    }
-    this.pieceSprites = [];
+    this._clearPieces();
 
     for (let i = 0; i < board.length; i++) {
       const p = board[i];
       if (!p) continue;
       const { x, y, z } = this.xyz(i);
-      const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: this._pieceTexture(p.c, p.t),
-        transparent: true,
-        depthWrite: false,
-        depthTest: true,
-      }));
-      spr.position.copy(this.cellPos(x, y, z));
-      spr.scale.set(0.82, 0.82, 1);
-      spr.renderOrder = 3;
-      spr.userData.cell = i;
-      this.boardGroup.add(spr);
-      this.pieceSprites.push(spr);
+      const obj = this.pieceStyle === 'sprite'
+        ? this._makeSprite(p)
+        : makePieceMesh(p.t, p.c);
+      obj.position.copy(this.cellPos(x, y, z));
+      // Sprites do not write depth, so they need forcing to the front to avoid
+      // being swallowed by the lattice. Models do write depth and are left at
+      // the default order, letting the depth buffer sort them against
+      // everything else honestly.
+      if (obj.isSprite) obj.renderOrder = 3;
+      obj.userData.cell = i;
+      this.boardGroup.add(obj);
+      this.pieceObjects.push(obj);
     }
     this._applySliceOpacity();
+  }
+
+  _makeSprite(p) {
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this._pieceTexture(p.c, p.t),
+      transparent: true,
+      depthWrite: false,
+      depthTest: true,
+    }));
+    spr.scale.set(0.82, 0.82, 1);
+    return spr;
+  }
+
+  _clearPieces() {
+    for (const obj of this.pieceObjects) {
+      this.boardGroup.remove(obj);
+      disposePieceObject(obj);
+    }
+    this.pieceObjects = [];
+  }
+
+  /**
+   * @param {'model'|'sprite'} style carved geometry, or the flat glyph
+   *        billboards. Both are kept because the sprites stay legible at any
+   *        board size and any camera angle, which the models do not.
+   */
+  setPieceStyle(style) {
+    const next = style === 'sprite' ? 'sprite' : 'model';
+    if (next === this.pieceStyle) return;
+    this.pieceStyle = next;
+    if (this._lastBoard) this.setPieces(this._lastBoard);
   }
 
   /**
@@ -428,10 +472,8 @@ export class Renderer3D {
   }
 
   _applySliceOpacity() {
-    for (const s of this.pieceSprites) {
-      const on = this.inSlice(s.userData.cell);
-      s.material.opacity = on ? 1 : 0.14;
-      s.material.needsUpdate = true;
+    for (const obj of this.pieceObjects) {
+      setPieceOpacity(obj, this.inSlice(obj.userData.cell) ? 1 : 0.14);
     }
     if (this.lattice) this.lattice.material.opacity = this.slice.axis ? 0.14 : 0.28;
   }

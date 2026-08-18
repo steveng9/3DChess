@@ -50,6 +50,22 @@ is click-through. `Esc` cancels a selection.
 **Isolate slice** in the left panel reduces the cube to a single level, rank or
 file when the full volume gets too busy.
 
+## Piece shapes
+
+Two representations, switched with the **Pieces** button in the left panel or by
+setting `Config.pieceStyle`:
+
+- **3D** — carved geometry in `js/view/PieceModels.js`. Pawn is a sphere; rook
+  is concentric cylinders under a notched crown; queen is a sphere with a
+  five-spike crown; knight is a blocky horse head with slit eyes and mouth;
+  bishop is a curved cone with one slit; king is an inverted rounded cone under
+  a three-dimensional cross.
+- **Flat** — billboarded Unicode glyphs. Less characterful, but readable from
+  any angle and at any board size, which matters most on 8×8×8.
+
+Editing a shape means editing one builder function; nothing else in the renderer
+knows what a piece looks like.
+
 ## Sounds
 
 Four cues, synthesised in the browser rather than shipped as files: move,
@@ -72,7 +88,8 @@ js/rules/           the engine — no DOM, no network, no Three.js
   GameState.js        position, history, captures, notation
 
 js/view/
-  Renderer3D.js       Three.js scene, lattice, sprites, picking
+  Renderer3D.js       Three.js scene, lattice, picking
+  PieceModels.js      carved 3D geometry for the six pieces
   UI.js               all DOM reads and writes
   Sounds.js           Web Audio cues
 

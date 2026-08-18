@@ -44,6 +44,11 @@ export const Config = {
   // ---- presentation ----------------------------------------------------
   cellSize: 1,
   sounds: true,
+
+  // How pieces are drawn. 'model' builds real geometry (js/view/PieceModels.js);
+  // 'sprite' uses the flat billboarded glyphs, which stay legible at any board
+  // size and camera angle. Also switchable in-game from the left panel.
+  pieceStyle: 'model',    // 'model' | 'sprite'
 };
 
 /** Resize the board. Accepts a single number (cubic) or {x,y,z}. */

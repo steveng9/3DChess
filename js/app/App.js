@@ -97,6 +97,9 @@ class App {
     if (!this.renderer) {
       this.renderer = new Renderer3D(this.ui.el.viewport);
       this.renderer.onPick = (cell) => this.handlePick(cell);
+      // The button label is markup, so it has to be told what Config chose.
+      this.ui.el.btnPieceStyle.textContent =
+        `Pieces: ${this.renderer.pieceStyle === 'model' ? '3D' : 'flat'}`;
     }
     return this.renderer;
   }
@@ -485,6 +488,14 @@ class App {
       this._spin = !this._spin;
       this.renderer.setAutoRotate(this._spin);
       el.btnSpin.textContent = this._spin ? 'Stop rotating' : 'Auto-rotate';
+    });
+
+    el.btnPieceStyle.addEventListener('click', () => {
+      if (!this.renderer) return;
+      const next = this.renderer.pieceStyle === 'model' ? 'sprite' : 'model';
+      this.renderer.setPieceStyle(next);
+      Config.pieceStyle = next;
+      el.btnPieceStyle.textContent = `Pieces: ${next === 'model' ? '3D' : 'flat'}`;
     });
 
     el.btnSound.addEventListener('click', () => {
